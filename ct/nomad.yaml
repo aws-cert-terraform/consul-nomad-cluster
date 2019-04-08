@@ -1,0 +1,44 @@
+[Unit]
+Description=nomad agent
+Requires=network-online.target
+After=network-online.target
+[Service]
+LimitNOFILE=65536
+Restart=on-failure
+ExecStart=/usr/local/bin/nomad agent -config /opt/nomad.d
+KillSignal=SIGINT
+RestartSec=5s
+[Install]
+WantedBy=multi-user.target
+
+
+cat << EONCF >/etc/nomad.d/client.hcl
+bind_addr = "0.0.0.0"
+region             = "${DATACENTER_NAME}"
+datacenter         = "${DATACENTER_NAME}"
+data_dir           = "/var/lib/nomad/"
+log_level          = "DEBUG"
+leave_on_interrupt = true
+leave_on_terminate = true
+client {
+  enabled = true
+}
+advertise {
+  http = "[${LOCAL_IPV4}]:4646"
+  rpc  = "[${LOCAL_IPV4}]:4647"
+  serf = "[${LOCAL_IPV4}]:4648"
+}
+EONCF
+
+
+cat << EOCCF >/etc/consul.d/agent.hcl
+client_addr =  "0.0.0.0"
+recursors =  ["127.0.0.1"]
+bootstrap =  false
+datacenter = "${DATACENTER_NAME}"
+data_dir = "/var/lib/consul"
+enable_syslog = true
+log_level = "DEBUG"
+retry_join = ["provider=aws tag_key=Name tag_value=consul-server"]
+advertise_addr = "${LOCAL_IPV4}"
+EOCCF

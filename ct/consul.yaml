@@ -1,0 +1,141 @@
+storage:
+  files:
+    - path: /opt/start
+      filesystem: root
+      mode: 480 # 740
+      contents:
+        inline: |
+          #!/bin/bash
+          install -m 740 /dev/null /opt/craft_environment
+          mkdir /opt/nomad.d
+
+          CONSUL_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
+
+          eval "cat <<EOF
+          CONSUL_IP=${CONSUL_IP}
+          DO_TOKEN="af7d46ed4971aa6481370573596910a6c99c868452f4ed4d26883b5696666d99"
+          EOF" > /opt/craft_environment
+
+          eval "cat <<EOF
+          log_level = \"DEBUG\"
+          bind_addr = \"0.0.0.0\"
+          data_dir = \"/tmp/server1\"
+
+          # advertise {
+          #   rpc = \"${CONSUL_IP}:4647\"
+          # }
+
+          server {
+            enabled = true
+            bootstrap_expect = 2
+          }
+
+          EOF" > /opt/nomad.d/server.hcl
+
+                    # Client
+          eval "cat <<EOF
+          datacenter = \"dc1\"
+          data_dir   = \"/etc/nomad.d\"
+
+          client {
+            enabled = true
+          }
+
+          EOF" > /opt/nomad.d/client.hcl
+
+          echo "Installing Nomad..."
+          NOMAD_VERSION=0.8.6
+          cd /tmp/
+          curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
+          unzip nomad.zip
+          install nomad /opt/nomad
+          mkdir -p /etc/nomad.d
+          chmod a+w /etc/nomad.d
+
+
+
+
+    
+systemd:
+  units:
+    - name: write-environment.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Set up cores server
+        Requires=docker.service network-online.target
+        After=docker.service network-online.target 
+
+        [Service]
+        Type=oneshot
+        Environment=DOCKER_IMAGE=busybox
+        Environment=DOCKER_NAME=%p
+        ExecStart=/opt/start
+        # ExecStart=/usr/bin/docker run --rm --name $DOCKER_NAME cat /opt/craft_environment
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: consul.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Consul Server
+        Requires=docker.service network-online.target write-environment.service
+        After=docker.service network-online.target write-environment.service
+
+        [Service]
+        Environment=DOCKER_IMAGE=consul
+        Environment=DOCKER_NAME=%p
+        EnvironmentFile=/opt/craft_environment
+        
+        Type=service
+        Restart=always
+        RestartSec=60
+        StartLimitInterval=0
+        TimeoutStartSec=0
+        ExecStart=/usr/bin/docker run --rm --name $DOCKER_NAME \
+            -v /data/consul:/data \
+            --net=host \
+            -e CONSUL_IP=${CONSUL_IP} \
+            -e DO_TOKEN=${DO_TOKEN} \
+            $DOCKER_IMAGE agent -server -ui -bootstrap-expect=2 -client=0.0.0.0 \
+                -advertise=${CONSUL_IP} -retry-join="provider=digitalocean region=nyc3 tag_name=consul api_token=${DO_TOKEN}"
+
+        [Install]
+        WantedBy=multi-user.target
+
+
+    - name: nomad.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Nomad client
+        Wants=network-online.target write-environment.service
+        After=network-online.target write-environment.service
+        
+        [Service]
+        EnvironmentFile=/opt/craft_environment
+        ExecStart=/opt/nomad agent -config /opt/nomad.d/server.hcl 
+        Restart=always
+        RestartSec=10
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: nomad-agent.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Nomad client
+        Wants=network-online.target write-environment.service
+        After=network-online.target write-environment.service
+        
+        [Service]
+        EnvironmentFile=/opt/craft_environment
+        ExecStart=/opt/nomad agent -config /opt/nomad.d/client.hcl 
+        Restart=always
+        RestartSec=10
+
+        [Install]
+        WantedBy=multi-user.target

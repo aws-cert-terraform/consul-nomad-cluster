@@ -9,6 +9,7 @@ storage:
           install -m 740 /dev/null /opt/craft_environment
           mkdir /opt/nomad.d
 
+          DOCKER_NETWORK=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
           CONSUL_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
 
           eval "cat <<EOF
@@ -18,12 +19,13 @@ storage:
 
           eval "cat <<EOF
           log_level = \"DEBUG\"
-          bind_addr = \"0.0.0.0\"
+          bind_addr = \"${CONSUL_IP}\"
           data_dir = \"/tmp/server1\"
 
-          # advertise {
-          #   rpc = \"${CONSUL_IP}:4647\"
-          # }
+          advertise {
+            rpc = \"${CONSUL_IP}:4647\"
+            http = \"${CONSUL_IP}:4646\"
+          }
 
           server {
             enabled = true
@@ -32,13 +34,18 @@ storage:
 
           EOF" > /opt/nomad.d/server.hcl
 
-                    # Client
+            # Client
           eval "cat <<EOF
           datacenter = \"dc1\"
           data_dir   = \"/etc/nomad.d\"
+          bind = 0.0.0.0
 
           client {
             enabled = true
+            options = {
+              \"driver.raw_exec.enable\" = \"1\"
+            }
+            network_interface = \"lo\"
           }
 
           EOF" > /opt/nomad.d/client.hcl
@@ -97,6 +104,7 @@ systemd:
         ExecStart=/usr/bin/docker run --rm --name $DOCKER_NAME \
             -v /data/consul:/data \
             --net=host \
+            -p 8500:8500 \
             -e CONSUL_IP=${CONSUL_IP} \
             -e DO_TOKEN=${DO_TOKEN} \
             $DOCKER_IMAGE agent -server -ui -bootstrap-expect=2 -client=0.0.0.0 \

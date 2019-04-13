@@ -6,7 +6,7 @@
 
 
 variable "do_token" {
-    default = "..."
+    default = "af7d46ed4971aa6481370573596910a6c99c868452f4ed4d26883b5696666d99"
 }
 
 

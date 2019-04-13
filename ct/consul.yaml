@@ -11,12 +11,16 @@ storage:
 
           DOCKER_NETWORK=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
           CONSUL_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
+          PRIVATE_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/private/0/ipv4/address)
 
           eval "cat <<EOF
           CONSUL_IP=${CONSUL_IP}
           DO_TOKEN="af7d46ed4971aa6481370573596910a6c99c868452f4ed4d26883b5696666d99"
           EOF" > /opt/craft_environment
 
+          #
+          #    Server
+          #_____________
           eval "cat <<EOF
           log_level = \"DEBUG\"
           bind_addr = \"${CONSUL_IP}\"
@@ -34,18 +38,20 @@ storage:
 
           EOF" > /opt/nomad.d/server.hcl
 
-            # Client
+          #
+          #    Client
+          #_____________
           eval "cat <<EOF
           datacenter = \"dc1\"
           data_dir   = \"/etc/nomad.d\"
-          bind = 0.0.0.0
+          bind_addr = \"${PRIVATE_IP}\"
 
           client {
             enabled = true
-            options = {
-              \"driver.raw_exec.enable\" = \"1\"
-            }
-            network_interface = \"lo\"
+            # options = {
+            #   \"driver.raw_exec.enable\" = \"1\"
+            # }
+            # network_interface = \"lo\"
           }
 
           EOF" > /opt/nomad.d/client.hcl

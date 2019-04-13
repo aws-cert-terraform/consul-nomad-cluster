@@ -15,7 +15,7 @@ storage:
 
           eval "cat <<EOF
           CONSUL_IP=${CONSUL_IP}
-          DO_TOKEN="af7d46ed4971aa6481370573596910a6c99c868452f4ed4d26883b5696666d99"
+          DO_TOKEN="..."
           EOF" > /opt/craft_environment
 
           #
@@ -84,7 +84,6 @@ systemd:
         Environment=DOCKER_IMAGE=busybox
         Environment=DOCKER_NAME=%p
         ExecStart=/opt/start
-        # ExecStart=/usr/bin/docker run --rm --name $DOCKER_NAME cat /opt/craft_environment
 
         [Install]
         WantedBy=multi-user.target

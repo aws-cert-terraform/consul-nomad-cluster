@@ -6,7 +6,7 @@
 
 
 variable "do_token" {
-    default = "af7d46ed4971aa6481370573596910a6c99c868452f4ed4d26883b5696666d99"
+    default = "<a-token>"
 }
 
 
@@ -14,7 +14,7 @@ variable "do_region" {
     default = "nyc3"
 }
 variable "ssh_fingerprint" {
-    default = "12:b8:e6:0a:a9:12:e6:9e:bd:6c:ba:c9:02:bb:f0:65"
+    default = "<a-fingerprint>"
 }
 
 variable "ssh_private_key" {

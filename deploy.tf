@@ -7,21 +7,33 @@
 
 
 provider "digitalocean" {
-    token = "${var.do_token}"
+  token = "${var.do_token}"
 }
 
 provider "ignition" {}
 
+resource "digitalocean_droplet" "gateway" {
+  image = "coreos-stable"
+  name = "gateway-server-${format(count.index)}"
+  region = "${var.do_region}"
+  private_networking = true
+  size = "${var.size_worker}"
+  ssh_keys = ["${split(",", var.ssh_fingerprint)}"]
+  count = "2"
+  tags   = ["consul", "gateway"]
+  user_data = "${file("ct/output/ignition.json")}"
+}
+
 resource "digitalocean_droplet" "consul_master" {
-    image = "coreos-stable"
-    name = "consul-server-${format(count.index)}"
-    region = "${var.do_region}"
-    private_networking = true
-    size = "${var.size_master}"
-    ssh_keys = ["${split(",", var.ssh_fingerprint)}"]
-    count = "2"
-    tags   = ["consul"]
-    user_data = "${file("ct/output/ignition.json")}"
+  image = "coreos-stable"
+  name = "consul-server-${format(count.index)}"
+  region = "${var.do_region}"
+  private_networking = true
+  size = "${var.size_master}"
+  ssh_keys = ["${split(",", var.ssh_fingerprint)}"]
+  count = "2"
+  tags   = ["consul"]
+  user_data = "${file("ct/output/ignition.json")}"
 }
 
 output "cluster-private-ips" {
@@ -40,7 +52,7 @@ resource "digitalocean_loadbalancer" "public" {
     entry_port = 80
     entry_protocol = "http"
 
-    target_port = 9999
+    target_port = 9901
     target_protocol = "http"
   }
 

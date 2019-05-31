@@ -1,0 +1,120 @@
+storage:
+  files:
+    - path: /opt/start
+      filesystem: root
+      mode: 480 # 740
+      contents:
+        inline: |
+          #!/bin/bash
+          install -m 740 /dev/null /opt/craft_environment
+          mkdir /opt/nomad.d
+
+          DOCKER_NETWORK=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
+          CONSUL_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address)
+          PRIVATE_IP=$(curl -s http://169.254.169.254/metadata/v1/interfaces/private/0/ipv4/address)
+
+          eval "cat <<EOF
+          CONSUL_IP=${CONSUL_IP}
+          DO_TOKEN="..."
+          EOF" > /opt/craft_environment
+
+          #
+          #    Server
+          #_____________
+          eval "cat <<EOF
+          log_level = \"DEBUG\"
+          bind_addr = \"${CONSUL_IP}\"
+          data_dir = \"/tmp/server1\"
+
+          advertise {
+            rpc = \"${CONSUL_IP}:4647\"
+            http = \"${CONSUL_IP}:4646\"
+          }
+
+          server {
+            enabled = true
+            bootstrap_expect = 2
+          }
+
+          EOF" > /opt/nomad.d/server.hcl
+
+          #
+          #    Client
+          #_____________
+          eval "cat <<EOF
+          datacenter = \"dc1\"
+          data_dir   = \"/etc/nomad.d\"
+          bind_addr = \"${PRIVATE_IP}\"
+
+          client {
+            enabled = true
+            # options = {
+            #   \"driver.raw_exec.enable\" = \"1\"
+            # }
+            # network_interface = \"lo\"
+          }
+
+          EOF" > /opt/nomad.d/client.hcl
+
+          echo "Installing Nomad..."
+          NOMAD_VERSION=0.8.6
+          cd /tmp/
+          curl -sSL https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
+          unzip nomad.zip
+          install nomad /opt/nomad
+          mkdir -p /etc/nomad.d
+          chmod a+w /etc/nomad.d
+
+
+
+
+    
+systemd:
+  units:
+    - name: write-environment.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Set up cores server
+        Requires=docker.service network-online.target
+        After=docker.service network-online.target 
+
+        [Service]
+        Type=oneshot
+        Environment=DOCKER_IMAGE=busybox
+        Environment=DOCKER_NAME=%p
+        ExecStart=/opt/start
+
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: consul-client.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Consul Server
+        Requires=docker.service network-online.target write-environment.service
+        After=docker.service network-online.target write-environment.service
+
+        [Service]
+        Environment=DOCKER_IMAGE=consul
+        Environment=DOCKER_NAME=%p
+        EnvironmentFile=/opt/craft_environment
+        
+        Type=service
+        Restart=always
+        RestartSec=60
+        StartLimitInterval=0
+        TimeoutStartSec=0
+        ExecStart=/usr/bin/docker run --rm --name $DOCKER_NAME \
+            -v /data/consul:/data \
+            --net=host \
+            -p 8500:8500 \
+            -e CONSUL_IP=${CONSUL_IP} \
+            -e DO_TOKEN=${DO_TOKEN} \
+            $DOCKER_IMAGE agent -advertise={CONSUL_IP} \
+                -retry-join="provider=digitalocean region=nyc3 tag_name=consul api_token=${DO_TOKEN}"
+
+        [Install]
+        WantedBy=multi-user.target
+

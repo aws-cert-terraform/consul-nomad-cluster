@@ -19,9 +19,10 @@ resource "digitalocean_droplet" "gateway" {
   private_networking = true
   size = "${var.size_worker}"
   ssh_keys = ["${split(",", var.ssh_fingerprint)}"]
-  count = "2"
+  count = "1"
   tags   = ["consul", "gateway"]
-  user_data = "${file("ct/output/ignition.json")}"
+  // outputting the ignition looks like this: `ct < consul.yaml > ./output/ignition.json`
+  user_data = "${file("ct/output/gateway.json")}"
 }
 
 resource "digitalocean_droplet" "consul_master" {
@@ -33,7 +34,7 @@ resource "digitalocean_droplet" "consul_master" {
   ssh_keys = ["${split(",", var.ssh_fingerprint)}"]
   count = "2"
   tags   = ["consul"]
-  user_data = "${file("ct/output/ignition.json")}"
+  user_data = "${file("ct/output/consul.json")}"
 }
 
 output "cluster-private-ips" {

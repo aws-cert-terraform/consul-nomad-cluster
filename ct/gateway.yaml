@@ -65,8 +65,38 @@ storage:
           mkdir -p /etc/nomad.d
           chmod a+w /etc/nomad.d
 
+          eval "cat <<EOF
+          ################################################################
+          # API and dashboard configuration
+          ################################################################
+          [api]
+          ################################################################
+          # Docker configuration backend
+          ################################################################
+          [docker]
+          domain = \"docker.local\"
+          watch = true
+          ################################################################
+          # Consul KV Provider
+          ################################################################
+          [consul]
+          endpoint = \"127.0.0.1:8500\"
+          watch = true
+          prefix = \"traefik\"
 
+          ################################################################
+          # Consul Catalog Provider
+          ################################################################
 
+          [consulCatalog]
+          endpoint = \"127.0.0.1:8500\"
+          exposedByDefault = false
+
+          stale = false
+          domain = \"consul.localhost\"
+
+          prefix = \"traefik\"
+          EOF" > /opt/traefik.toml
 
     
 systemd:
@@ -108,11 +138,10 @@ systemd:
         TimeoutStartSec=0
         ExecStart=/usr/bin/docker run --rm --name $DOCKER_NAME \
             -v /data/consul:/data \
-            --net=host \
             -p 8500:8500 \
             -e CONSUL_IP=${CONSUL_IP} \
             -e DO_TOKEN=${DO_TOKEN} \
-            $DOCKER_IMAGE agent -advertise={CONSUL_IP} \
+            $DOCKER_IMAGE agent -advertise=${CONSUL_IP} \
                 -retry-join="provider=digitalocean region=nyc3 tag_name=consul api_token=${DO_TOKEN}"
 
         [Install]
@@ -138,7 +167,6 @@ systemd:
         TimeoutStartSec=0
         ExecStart=/usr/bin/docker run --rm --name $DOCKER_NAME \
             -v /opt/traefik.toml:/etc/traefik/traefik.toml \
-            --net=host \
             -p 8080:8080 \
             -p 80:80 \
             $DOCKER_IMAGE 

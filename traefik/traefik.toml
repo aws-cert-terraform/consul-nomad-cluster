@@ -20,7 +20,7 @@ watch = true
 # Required
 # Default: "127.0.0.1:8500"
 #
-endpoint = "127.0.0.1:8500"
+endpoint = "0.0.0.0:8500"
 
 # Enable watch Consul changes.
 #

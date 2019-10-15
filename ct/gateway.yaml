@@ -15,7 +15,7 @@ storage:
 
           eval "cat <<EOF
           CONSUL_IP=${CONSUL_IP}
-          DO_TOKEN="..."
+          DO_TOKEN="6b45834056b8d0ae10a833691fb89b6514afff29a1f894af3d284dcfc08dfc00"
           EOF" > /opt/craft_environment
 
           #
@@ -121,6 +121,7 @@ systemd:
     - name: consul-client.service
       enabled: true
       contents: |
+      
         [Unit]
         Description=Consul Server
         Requires=docker.service network-online.target write-environment.service

@@ -44,14 +44,14 @@ storage:
           eval "cat <<EOF
           datacenter = \"dc1\"
           data_dir   = \"/etc/nomad.d\"
-          bind_addr = \"${PRIVATE_IP}\"
+          bind_addr = 0.0.0.0
 
           client {
             enabled = true
-            # options = {
-            #   \"driver.raw_exec.enable\" = \"1\"
-            # }
-            # network_interface = \"lo\"
+            options = {
+              \"driver.raw_exec.enable\" = \"1\"
+            }
+            network_interface = \"lo\"
           }
 
           EOF" > /opt/nomad.d/client.hcl
@@ -119,7 +119,7 @@ systemd:
       enabled: true
       contents: |
         [Unit]
-        Description=Nomad client
+        Description=Nomad server
         Wants=network-online.target write-environment.service
         After=network-online.target write-environment.service
         

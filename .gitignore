@@ -1,7 +1,3 @@
 .terraform
-**/.DS_Store
-**/*.tfstate*
-ct/output/
-scratch/
-lb/
-jobs/
+terraform.*
+.vscode

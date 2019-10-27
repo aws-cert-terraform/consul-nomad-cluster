@@ -31,15 +31,15 @@ provider "digitalocean" {
 # }
 
 resource "digitalocean_droplet" "consul_master" {
-  image              = "coreos-stable"
-  name               = "consul-server-${format(count.index)}"
-  region             = var.do_region
-  private_networking = true
-  size               = var.size_master
-  ssh_keys           = var.ssh_fingerprint
-  count              = "2"
-  tags               = ["consul"]
-  user_data          = file("ct/output/consul.json")
+    image = "coreos-stable"
+    name = "consul-server-${format(count.index)}"
+    region = "${var.do_region}"
+    private_networking = true
+    size = "${var.size_master}"
+    ssh_keys = ["12:b8:e6:0a:a9:12:e6:9e:bd:6c:ba:c9:02:bb:f0:65"]
+    count = "2"
+    tags   = ["consul"]
+    user_data = "${file("ct/output/ignition.json")}"
 }
 
 // resource "digitalocean_loadbalancer" "lb_public" {
